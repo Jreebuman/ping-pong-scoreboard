@@ -1,0 +1,942 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ping Pong Scoreboard</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Two-lane LED scoreboard — teal lane (P1) left, amber lane (P2) right.
+   Deliberate single dark "arena videoboard" world. */
+:root{
+  --bg:#0a0c0f;
+  --panel:#15181d;
+  --panel-2:#1b1f26;
+  --line:rgba(255,255,255,.08);
+  --fg:#eef1f4;
+  --muted:#8b949e;
+  --p1:#2dd4cf;
+  --p1-soft:#123b3a;
+  --p2:#ff9f45;
+  --p2-soft:#3d2612;
+  --good:#4ade80;
+  --warn:#ffd166;
+  --bad:#f87171;
+  --font-display:'Rajdhani',sans-serif;
+  --font-body:'IBM Plex Sans',sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--fg);
+  font-family:var(--font-body);
+  display:flex;
+  flex-direction:column;
+  overflow-x:hidden;
+}
+button{font-family:inherit;color:inherit;}
+img{max-width:100%;}
+[hidden]{display:none!important;}
+.screen{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+  padding-inline:16px;
+  padding-block:16px;
+}
+
+/* ---------- Landing / connect ---------- */
+.center-wrap{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.card{
+  width:100%;
+  max-width:420px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:28px 24px;
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+}
+.title{
+  font-family:var(--font-display);
+  font-size:28px;
+  font-weight:700;
+  letter-spacing:.02em;
+  text-align:center;
+  text-wrap:balance;
+}
+.title span{color:var(--p2);}
+.subtitle{font-size:13px; color:var(--muted); text-align:center; line-height:1.5;}
+.big-btn{
+  background:var(--p2);
+  color:#1a1206;
+  border:none;
+  border-radius:10px;
+  padding:16px;
+  font-size:16px;
+  font-weight:700;
+  font-family:var(--font-display);
+  letter-spacing:.03em;
+  cursor:pointer;
+}
+.big-btn.secondary{
+  background:var(--panel-2);
+  color:var(--fg);
+  border:1px solid var(--line);
+}
+.big-btn:disabled{opacity:.4; cursor:not-allowed;}
+.divider{display:flex; align-items:center; gap:10px; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.08em;}
+.divider::before,.divider::after{content:''; flex:1; height:1px; background:var(--line);}
+.code-row{display:flex; gap:8px;}
+.code-input{
+  flex:1;
+  min-width:0;
+  background:var(--panel-2);
+  border:1px solid var(--line);
+  border-radius:8px;
+  color:var(--fg);
+  font-family:var(--font-display);
+  font-size:20px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  text-align:center;
+  padding:12px 10px;
+}
+.code-input:focus{outline:2px solid var(--p1);}
+.status-line{
+  font-size:13px;
+  color:var(--muted);
+  text-align:center;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+}
+.dot-pulse{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--warn);
+  animation:pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.room-code-display{
+  font-family:var(--font-display);
+  font-size:40px;
+  font-weight:700;
+  letter-spacing:.18em;
+  text-align:center;
+  color:var(--p2);
+  font-variant-numeric:tabular-nums;
+}
+.link-row{
+  display:flex;
+  gap:8px;
+  background:var(--panel-2);
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:8px;
+  align-items:center;
+}
+.link-row input{
+  flex:1;
+  min-width:0;
+  background:transparent;
+  border:none;
+  color:var(--muted);
+  font-size:12px;
+}
+.copy-btn{
+  background:var(--p1-soft);
+  color:var(--p1);
+  border:1px solid var(--p1);
+  border-radius:6px;
+  padding:7px 12px;
+  font-size:12px;
+  font-weight:600;
+  cursor:pointer;
+  flex:none;
+}
+.error-text{color:var(--bad); font-size:13px; text-align:center;}
+.link-btn{background:none; border:none; color:var(--muted); font-size:13px; text-decoration:underline; cursor:pointer; padding:4px;}
+
+/* ---------- Setup form ---------- */
+.field-label{
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--muted);
+  margin-bottom:6px;
+  display:block;
+}
+.name-row{display:flex; flex-direction:column; gap:14px;}
+.name-field{border-radius:10px; padding:4px;}
+.name-field.p1{border-left:3px solid var(--p1);}
+.name-field.p2{border-left:3px solid var(--p2);}
+.name-field input{
+  width:calc(100% - 8px);
+  background:var(--panel-2);
+  border:1px solid var(--line);
+  border-radius:8px;
+  color:var(--fg);
+  font-size:16px;
+  font-family:var(--font-body);
+  padding:12px 10px;
+  margin-left:8px;
+}
+.name-field input:focus{outline:2px solid var(--p1);}
+.segmented{display:flex; gap:6px; flex-wrap:wrap;}
+.seg-btn{
+  flex:1; min-width:56px;
+  background:var(--panel-2);
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:10px 6px;
+  text-align:center;
+  font-weight:600;
+  cursor:pointer;
+}
+.seg-btn[aria-pressed="true"]{background:var(--p1-soft); border-color:var(--p1); color:var(--p1);}
+.serve-pick{display:flex; gap:8px;}
+.serve-btn{
+  flex:1;
+  background:var(--panel-2);
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:10px;
+  cursor:pointer;
+  font-weight:600;
+}
+.serve-btn[aria-pressed="true"].p1{border-color:var(--p1); color:var(--p1); background:var(--p1-soft);}
+.serve-btn[aria-pressed="true"].p2{border-color:var(--p2); color:var(--p2); background:var(--p2-soft);}
+
+/* ---------- Play screen ---------- */
+.topbar{display:flex; align-items:center; justify-content:space-between; gap:10px; padding-bottom:10px; flex-wrap:wrap;}
+.match-meta{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.07em;}
+.pips{display:flex; gap:5px; align-items:center;}
+.pip{width:9px;height:9px;border-radius:50%; background:var(--line);}
+.pip.won-p1{background:var(--p1);}
+.pip.won-p2{background:var(--p2);}
+.conn-pill{
+  display:flex; align-items:center; gap:6px;
+  font-size:11px; color:var(--muted);
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:4px 10px;
+}
+.conn-pill .dot{width:7px;height:7px;border-radius:50%; background:var(--good);}
+.conn-pill.off .dot{background:var(--bad);}
+
+.lanes{flex:1; display:flex; gap:10px; min-height:0;}
+@media (max-width:519px){ .lanes{flex-direction:column;} }
+.lane{
+  flex:1; min-width:0;
+  border-radius:16px;
+  border:1px solid var(--line);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+  cursor:pointer;
+  position:relative;
+  padding-block:14px;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  transition:transform .06s ease;
+}
+.lane:active{transform:scale(.98);}
+.lane.p1{background:linear-gradient(180deg,var(--p1-soft),var(--panel));}
+.lane.p2{background:linear-gradient(180deg,var(--p2-soft),var(--panel));}
+.lane.locked{cursor:default; opacity:.55;}
+.lane-name{display:flex; align-items:center; gap:8px; font-size:15px; font-weight:600; max-width:92%; min-width:0;}
+.lane-name .nm{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.lane.p1 .lane-name{color:var(--p1);}
+.lane.p2 .lane-name{color:var(--p2);}
+.ball-dot{width:9px;height:9px;border-radius:50%; flex:none; box-shadow:0 0 0 3px rgba(255,255,255,.08);}
+.lane.p1 .ball-dot{background:var(--p1);}
+.lane.p2 .ball-dot{background:var(--p2);}
+.serving-label{font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+.lane-score{font-family:var(--font-display); font-weight:700; font-variant-numeric:tabular-nums; font-size:clamp(64px,18vw,128px); line-height:1;}
+.lane-hint{font-size:11px; color:var(--muted);}
+
+.bottombar{display:flex; gap:10px; padding-top:12px; align-items:center;}
+.ghost-btn{
+  background:var(--panel-2);
+  border:1px solid var(--line);
+  color:var(--fg);
+  border-radius:10px;
+  padding:10px 14px;
+  font-size:13px;
+  font-weight:600;
+  cursor:pointer;
+}
+.ghost-btn:disabled{opacity:.35; cursor:not-allowed;}
+.ghost-btn.danger[data-armed="true"]{border-color:var(--bad); color:var(--bad);}
+.spacer{flex:1;}
+
+.overlay{
+  position:fixed; inset:0;
+  background:rgba(5,6,8,.72);
+  display:flex; align-items:center; justify-content:center;
+  padding:20px; z-index:20;
+}
+.overlay-card{
+  background:var(--panel); border:1px solid var(--line); border-radius:16px;
+  padding:28px 24px; max-width:360px; width:100%; text-align:center;
+  display:flex; flex-direction:column; gap:14px;
+}
+.overlay-eyebrow{font-size:11px; text-transform:uppercase; letter-spacing:.09em; color:var(--muted);}
+.overlay-headline{font-family:var(--font-display); font-weight:700; font-size:24px; text-wrap:balance;}
+.overlay-headline .w{color:var(--good);}
+.next-btn{
+  background:var(--p1); color:#06201f; border:none; border-radius:10px;
+  padding:14px; font-size:15px; font-weight:700; font-family:var(--font-display);
+  letter-spacing:.03em; cursor:pointer;
+}
+
+.toast{
+  position:fixed; left:50%; bottom:calc(18px + env(safe-area-inset-bottom,0px));
+  transform:translateX(-50%);
+  background:var(--warn); color:#2b2106; font-weight:600; font-size:13px;
+  padding:10px 16px; border-radius:999px; z-index:30;
+  box-shadow:0 6px 20px rgba(0,0,0,.35);
+}
+
+.finish-wrap{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; text-align:center;}
+.finish-headline{font-family:var(--font-display); font-weight:700; font-size:clamp(26px,7vw,40px); text-wrap:balance;}
+.finish-sub{color:var(--muted); font-size:14px;}
+.game-table{width:100%; max-width:360px; border-collapse:collapse; font-size:13px;}
+.game-table th{color:var(--muted); font-weight:500; text-align:center; padding:6px 4px; font-size:11px; text-transform:uppercase; letter-spacing:.06em;}
+.game-table td{text-align:center; padding:8px 4px; border-top:1px solid var(--line); font-variant-numeric:tabular-nums;}
+.game-table td.win{font-weight:700;}
+.game-table td.win.c1{color:var(--p1);}
+.game-table td.win.c2{color:var(--p2);}
+.new-match-btn{
+  background:var(--p2); color:#1a1206; border:none; border-radius:10px;
+  padding:14px 28px; font-size:15px; font-weight:700; font-family:var(--font-display);
+  letter-spacing:.03em; cursor:pointer;
+}
+
+.footer-note{font-size:11px; color:var(--muted); text-align:center; padding-top:8px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var GAME_TARGET = 11;
+  var ROOM_PREFIX = 'ppboard-';
+  var CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I
+
+  // ---------- rules engine (pure) ----------
+  function gamesToWinFor(bestOf){ return Math.ceil(bestOf/2); }
+
+  function computeServer(state){
+    var total = state.cur.p1 + state.cur.p2;
+    var other = state.gameFirstServer === 1 ? 2 : 1;
+    var idx = total < 20 ? Math.floor(total/2) : 10 + (total-20);
+    return (idx % 2 === 0) ? state.gameFirstServer : other;
+  }
+
+  function checkGameWinner(cur){
+    if(cur.p1 >= GAME_TARGET && cur.p1 - cur.p2 >= 2) return 1;
+    if(cur.p2 >= GAME_TARGET && cur.p2 - cur.p1 >= 2) return 2;
+    return null;
+  }
+
+  function countWins(games){
+    var w = {1:0,2:0};
+    games.forEach(function(g){ if(g.p1>g.p2) w[1]++; else if(g.p2>g.p1) w[2]++; });
+    return w;
+  }
+
+  function isDecidingGame(state){
+    var w = countWins(state.games);
+    return w[1] === state.gamesToWin-1 && w[2] === state.gamesToWin-1;
+  }
+
+  function freshMatch(p1, p2, bestOf, firstServer){
+    return {
+      status:'playing', p1:p1, p2:p2, bestOf:bestOf,
+      gamesToWin: gamesToWinFor(bestOf), gameFirstServer: firstServer,
+      cur:{p1:0,p2:0}, games:[], gameWinner:null, matchWinner:null,
+      endsSwitchAnnounced:false, history:[]
+    };
+  }
+
+  function stripHistory(state){
+    var rest = {};
+    Object.keys(state).forEach(function(k){ if(k!=='history') rest[k]=state[k]; });
+    return rest;
+  }
+
+  function reducePoint(state, playerNum){
+    if(state.status!=='playing' || state.gameWinner || state.matchWinner) return state;
+    var rest = stripHistory(state);
+    var newCur = {p1:state.cur.p1, p2:state.cur.p2};
+    if(playerNum===1) newCur.p1++; else newCur.p2++;
+    var next = JSON.parse(JSON.stringify(rest));
+    next.cur = newCur;
+    if(isDecidingGame(state) && !state.endsSwitchAnnounced && (newCur.p1===5 || newCur.p2===5)){
+      next.endsSwitchAnnounced = true;
+    }
+    var winner = checkGameWinner(newCur);
+    if(winner){
+      next.games = state.games.concat([{p1:newCur.p1, p2:newCur.p2}]);
+      next.gameWinner = winner;
+      var wins = countWins(next.games);
+      if(wins[winner] >= state.gamesToWin) next.matchWinner = winner;
+    }
+    var hist = (state.history||[]).slice(-29);
+    hist.push(rest);
+    next.history = hist;
+    return next;
+  }
+
+  function reduceNextGame(state){
+    if(!(state.gameWinner && !state.matchWinner)) return state;
+    var rest = stripHistory(state);
+    var next = JSON.parse(JSON.stringify(rest));
+    next.cur = {p1:0,p2:0};
+    next.gameWinner = null;
+    next.gameFirstServer = state.gameFirstServer===1 ? 2 : 1;
+    next.endsSwitchAnnounced = false;
+    var hist = (state.history||[]).slice(-29);
+    hist.push(rest);
+    next.history = hist;
+    return next;
+  }
+
+  function reduceUndo(state){
+    if(!state.history || state.history.length===0) return state;
+    var hist = state.history.slice();
+    var last = hist.pop();
+    var next = JSON.parse(JSON.stringify(last));
+    next.history = hist;
+    return next;
+  }
+
+  function reduceReset(state){
+    return {
+      status:'setup', p1:state.p1, p2:state.p2, bestOf:state.bestOf,
+      cur:{p1:0,p2:0}, games:[], gameWinner:null, matchWinner:null,
+      gameFirstServer:1, endsSwitchAnnounced:false, history:[]
+    };
+  }
+
+  function reduce(state, action){
+    switch(action.type){
+      case 'start': return freshMatch(action.p1, action.p2, action.bestOf, action.firstServer);
+      case 'point': return reducePoint(state, action.player);
+      case 'nextGame': return reduceNextGame(state);
+      case 'undo': return reduceUndo(state);
+      case 'reset': return reduceReset(state);
+      default: return state;
+    }
+  }
+
+  // ---------- DOM helpers ----------
+  function el(tag, attrs, children){
+    var e = document.createElement(tag);
+    attrs = attrs || {};
+    Object.keys(attrs).forEach(function(k){
+      if(k==='text'){ e.textContent = attrs[k]; }
+      else if(k==='html'){ e.innerHTML = attrs[k]; }
+      else if(k.indexOf('on')===0 && typeof attrs[k]==='function'){ e.addEventListener(k.slice(2), attrs[k]); }
+      else if(k==='style'){ Object.assign(e.style, attrs[k]); }
+      else { e.setAttribute(k, attrs[k]); }
+    });
+    (children||[]).forEach(function(c){ if(c) e.appendChild(c); });
+    return e;
+  }
+
+  function randomCode(len){
+    var s = '';
+    for(var i=0;i<len;i++) s += CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)];
+    return s;
+  }
+
+  // ---------- connection layer ----------
+  var app = document.getElementById('app');
+  var role = null;          // 'host' | 'guest'
+  var peer = null;
+  var conn = null;
+  var peerConnected = false; // data channel currently open
+  var connPhase = 'landing'; // landing | hosting-wait | joining | join-failed | connected
+  var roomCode = '';
+  var lastError = '';
+  var matchState = null;
+
+  var toastTimer = null;
+  var prevEndsSwitchAnnounced = false;
+  var resetArmed = false;
+  var resetArmTimer = null;
+
+  function showToast(msg){
+    clearTimeout(toastTimer);
+    var existing = document.querySelector('.toast');
+    if(existing) existing.remove();
+    var t = el('div', {class:'toast', text:msg});
+    document.body.appendChild(t);
+    toastTimer = setTimeout(function(){ t.remove(); }, 4200);
+  }
+
+  function sendToPeer(msg){
+    if(conn && peerConnected){
+      try{ conn.send(msg); }catch(e){}
+    }
+  }
+
+  function broadcastState(){
+    sendToPeer({type:'state', state: matchState});
+  }
+
+  // Host applies an action (its own tap or one relayed from the guest),
+  // updates canonical state, re-renders itself, and syncs the guest.
+  function hostApply(action){
+    matchState = reduce(matchState, action);
+    render();
+    broadcastState();
+  }
+
+  // Any tap, from either side, becomes an action. The host applies it
+  // locally; the guest ships it to the host and waits for the echo.
+  function dispatch(action){
+    if(role === 'host'){
+      hostApply(action);
+    } else {
+      sendToPeer({type:'action', action: action});
+    }
+  }
+
+  function startHosting(){
+    role = 'host';
+    roomCode = randomCode(5);
+    connPhase = 'hosting-wait';
+    render();
+    peer = new Peer(ROOM_PREFIX + roomCode.toLowerCase());
+    peer.on('open', function(){ render(); });
+    peer.on('error', function(err){
+      lastError = (err && err.type === 'unavailable-id')
+        ? 'That room code is already in use — try again.'
+        : 'Could not start a room (' + (err && err.type || 'connection error') + ').';
+      connPhase = 'landing';
+      render();
+    });
+    peer.on('connection', function(c){
+      // A second guest reconnecting (e.g. after a refresh) replaces the old link.
+      conn = c;
+      wireHostConnection();
+    });
+  }
+
+  function wireHostConnection(){
+    conn.on('open', function(){
+      peerConnected = true;
+      connPhase = 'connected';
+      if(!matchState) matchState = {status:'setup', p1:'', p2:'', bestOf:5};
+      render();
+      broadcastState();
+    });
+    conn.on('data', function(msg){
+      if(msg && msg.type === 'action') hostApply(msg.action);
+    });
+    conn.on('close', function(){
+      peerConnected = false;
+      render();
+    });
+  }
+
+  function joinRoom(code){
+    role = 'guest';
+    roomCode = code;
+    connPhase = 'joining';
+    lastError = '';
+    render();
+    peer = new Peer();
+    peer.on('open', function(){
+      conn = peer.connect(ROOM_PREFIX + code.toLowerCase(), {reliable:true});
+      conn.on('open', function(){
+        peerConnected = true;
+        connPhase = 'connected';
+        render();
+      });
+      conn.on('data', function(msg){
+        if(msg && msg.type === 'state'){
+          matchState = msg.state;
+          render();
+        }
+      });
+      conn.on('close', function(){
+        peerConnected = false;
+        render();
+      });
+      conn.on('error', function(){
+        if(connPhase !== 'connected'){
+          lastError = "Couldn't find that room. Check the code and that your friend still has the page open.";
+          connPhase = 'join-failed';
+          render();
+        }
+      });
+      setTimeout(function(){
+        if(connPhase === 'joining'){
+          lastError = "Couldn't reach that room. Check the code and try again.";
+          connPhase = 'join-failed';
+          render();
+        }
+      }, 12000);
+    });
+    peer.on('error', function(err){
+      lastError = 'Connection error (' + (err && err.type || 'unknown') + '). Try again.';
+      connPhase = 'join-failed';
+      render();
+    });
+  }
+
+  function retryJoin(){ joinRoom(roomCode); }
+
+  // ---------- renderers ----------
+  function renderLanding(){
+    app.innerHTML = '';
+    var screen = el('div', {class:'screen'});
+    var wrap = el('div', {class:'center-wrap'});
+    var card = el('div', {class:'card'});
+    card.appendChild(el('div', {class:'title', html:'Ping Pong <span>Scoreboard</span>'}));
+    card.appendChild(el('div', {class:'subtitle', text:'Play a real table-tennis match with a friend online. One of you hosts, the other joins with a short code — no accounts needed.'}));
+
+    var hostBtn = el('button', {type:'button', class:'big-btn', text:'Host a new match'});
+    hostBtn.addEventListener('click', startHosting);
+    card.appendChild(hostBtn);
+
+    card.appendChild(el('div', {class:'divider', text:'or'}));
+
+    var codeRow = el('div', {class:'code-row'});
+    var codeInput = el('input', {class:'code-input', maxlength:'5', placeholder:'CODE', id:'join-code-input'});
+    var params = new URLSearchParams(location.search);
+    var pre = (params.get('join')||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);
+    if(pre) codeInput.value = pre;
+    var joinBtn = el('button', {type:'button', class:'big-btn secondary', text:'Join'});
+    function syncJoinEnabled(){ joinBtn.disabled = codeInput.value.trim().length < 5; }
+    codeInput.addEventListener('input', function(){
+      codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);
+      syncJoinEnabled();
+    });
+    syncJoinEnabled();
+    joinBtn.addEventListener('click', function(){ joinRoom(codeInput.value.trim()); });
+    codeRow.appendChild(codeInput); codeRow.appendChild(joinBtn);
+    card.appendChild(codeRow);
+
+    if(lastError) card.appendChild(el('div', {class:'error-text', text:lastError}));
+
+    wrap.appendChild(card);
+    screen.appendChild(wrap);
+    app.appendChild(screen);
+  }
+
+  function renderHostingWait(){
+    app.innerHTML = '';
+    var screen = el('div', {class:'screen'});
+    var wrap = el('div', {class:'center-wrap'});
+    var card = el('div', {class:'card'});
+    card.appendChild(el('div', {class:'title', html:'Room <span>ready</span>'}));
+    card.appendChild(el('div', {class:'subtitle', text:'Share this code with your friend.'}));
+    card.appendChild(el('div', {class:'room-code-display', text: peer && peer.open ? roomCode : '…'}));
+
+    var shareUrl = location.origin + location.pathname + '?join=' + roomCode;
+    var linkRow = el('div', {class:'link-row'});
+    var linkInput = el('input', {type:'text', readonly:'true', value: shareUrl});
+    var copyBtn = el('button', {type:'button', class:'copy-btn', text:'Copy link'});
+    copyBtn.addEventListener('click', function(){
+      navigator.clipboard && navigator.clipboard.writeText(shareUrl).then(function(){
+        copyBtn.textContent = 'Copied';
+        setTimeout(function(){ copyBtn.textContent = 'Copy link'; }, 1500);
+      }).catch(function(){
+        linkInput.select();
+      });
+    });
+    linkRow.appendChild(linkInput); linkRow.appendChild(copyBtn);
+    card.appendChild(linkRow);
+
+    card.appendChild(el('div', {class:'status-line'}, [
+      el('span', {class:'dot-pulse'}),
+      el('span', {text: peer && peer.open ? 'Waiting for your friend to join…' : 'Opening room…'})
+    ]));
+
+    var backBtn = el('button', {type:'button', class:'link-btn', text:'Cancel'});
+    backBtn.addEventListener('click', function(){
+      if(peer) peer.destroy();
+      role = null; connPhase = 'landing';
+      render();
+    });
+    card.appendChild(backBtn);
+
+    wrap.appendChild(card);
+    screen.appendChild(wrap);
+    app.appendChild(screen);
+  }
+
+  function renderJoining(){
+    app.innerHTML = '';
+    var screen = el('div', {class:'screen'});
+    var wrap = el('div', {class:'center-wrap'});
+    var card = el('div', {class:'card'});
+    card.appendChild(el('div', {class:'title', html:'Joining…'}));
+    card.appendChild(el('div', {class:'room-code-display', text: roomCode}));
+    card.appendChild(el('div', {class:'status-line'}, [
+      el('span', {class:'dot-pulse'}),
+      el('span', {text:'Connecting to the host…'})
+    ]));
+    wrap.appendChild(card);
+    screen.appendChild(wrap);
+    app.appendChild(screen);
+  }
+
+  function renderJoinFailed(){
+    app.innerHTML = '';
+    var screen = el('div', {class:'screen'});
+    var wrap = el('div', {class:'center-wrap'});
+    var card = el('div', {class:'card'});
+    card.appendChild(el('div', {class:'title', text:'Connection failed'}));
+    card.appendChild(el('div', {class:'error-text', text:lastError}));
+    var retryBtn = el('button', {type:'button', class:'big-btn', text:'Try again'});
+    retryBtn.addEventListener('click', retryJoin);
+    card.appendChild(retryBtn);
+    var backBtn = el('button', {type:'button', class:'link-btn', text:'Back'});
+    backBtn.addEventListener('click', function(){
+      if(peer) peer.destroy();
+      role = null; connPhase = 'landing'; lastError='';
+      render();
+    });
+    card.appendChild(backBtn);
+    wrap.appendChild(card);
+    screen.appendChild(wrap);
+    app.appendChild(screen);
+  }
+
+  function renderSetup(){
+    app.innerHTML = '';
+    var isHost = role === 'host';
+    var screen = el('div', {class:'screen'});
+    var wrap = el('div', {class:'center-wrap'});
+    var card = el('div', {class:'card'});
+    card.appendChild(el('div', {class:'title', html:'Ping Pong <span>Scoreboard</span>'}));
+
+    if(!isHost){
+      card.appendChild(el('div', {class:'subtitle', text:'Connected! Waiting for the host to set up the match…'}));
+      card.appendChild(el('div', {class:'status-line'}, [el('span', {class:'dot-pulse'}), el('span', {text:'Host is setting names and format'})]));
+      wrap.appendChild(card); screen.appendChild(wrap); app.appendChild(screen);
+      return;
+    }
+
+    var row = el('div', {class:'name-row'});
+    var f1 = el('div', {class:'name-field p1'});
+    f1.appendChild(el('label', {class:'field-label', text:'Player 1 (serves first by default)'}));
+    var in1 = el('input', {type:'text', maxlength:'20', placeholder:'e.g. Zaid', value: matchState.p1 || ''});
+    f1.appendChild(in1);
+    var f2 = el('div', {class:'name-field p2'});
+    f2.appendChild(el('label', {class:'field-label', text:'Player 2'}));
+    var in2 = el('input', {type:'text', maxlength:'20', placeholder:'e.g. Lina', value: matchState.p2 || ''});
+    f2.appendChild(in2);
+    row.appendChild(f1); row.appendChild(f2);
+    card.appendChild(row);
+
+    var bestOf = matchState.bestOf || 5;
+    var firstServer = 1;
+    var bestOfField = el('div', {});
+    bestOfField.appendChild(el('label', {class:'field-label', text:'Match format'}));
+    var seg = el('div', {class:'segmented'});
+    [1,3,5,7].forEach(function(n){
+      var b = el('button', {type:'button', class:'seg-btn', 'aria-pressed':String(n===bestOf), text: n===1?'Single game':'Best of '+n});
+      b.addEventListener('click', function(){
+        bestOf = n;
+        seg.querySelectorAll('.seg-btn').forEach(function(x){ x.setAttribute('aria-pressed','false'); });
+        b.setAttribute('aria-pressed','true');
+      });
+      seg.appendChild(b);
+    });
+    bestOfField.appendChild(seg);
+    card.appendChild(bestOfField);
+
+    var serveField = el('div', {});
+    serveField.appendChild(el('label', {class:'field-label', text:'Who serves first?'}));
+    var servePick = el('div', {class:'serve-pick'});
+    var sb1 = el('button', {type:'button', class:'serve-btn p1', 'aria-pressed':'true', text:'Player 1'});
+    var sb2 = el('button', {type:'button', class:'serve-btn p2', 'aria-pressed':'false', text:'Player 2'});
+    sb1.addEventListener('click', function(){ firstServer=1; sb1.setAttribute('aria-pressed','true'); sb2.setAttribute('aria-pressed','false'); });
+    sb2.addEventListener('click', function(){ firstServer=2; sb1.setAttribute('aria-pressed','false'); sb2.setAttribute('aria-pressed','true'); });
+    servePick.appendChild(sb1); servePick.appendChild(sb2);
+    serveField.appendChild(servePick);
+    card.appendChild(serveField);
+
+    var startBtn = el('button', {type:'button', class:'big-btn', text:'Start match'});
+    function syncStartEnabled(){ startBtn.disabled = !(in1.value.trim() && in2.value.trim()); }
+    in1.addEventListener('input', syncStartEnabled);
+    in2.addEventListener('input', syncStartEnabled);
+    syncStartEnabled();
+    startBtn.addEventListener('click', function(){
+      dispatch({type:'start', p1:in1.value.trim()||'Player 1', p2:in2.value.trim()||'Player 2', bestOf:bestOf, firstServer:firstServer});
+    });
+    card.appendChild(startBtn);
+
+    card.appendChild(el('div', {class:'subtitle', text:'Games to 11, win by 2. Serve switches every 2 points — every point once it\'s 10-10.'}));
+
+    wrap.appendChild(card);
+    screen.appendChild(wrap);
+    app.appendChild(screen);
+  }
+
+  function connPill(){
+    var ok = peerConnected;
+    return el('div', {class:'conn-pill' + (ok?'':' off')}, [
+      el('span', {class:'dot'}),
+      el('span', {text: ok ? 'Live' : (role==='host' ? 'Friend disconnected' : 'Reconnecting…')})
+    ]);
+  }
+
+  function laneEl(playerNum, s){
+    var name = playerNum===1 ? s.p1 : s.p2;
+    var score = playerNum===1 ? s.cur.p1 : s.cur.p2;
+    var serverNum = computeServer(s);
+    var locked = !!s.gameWinner || !!s.matchWinner;
+    var lane = el('button', {type:'button', class:'lane p'+playerNum+(locked?' locked':''), 'aria-label':'Point for '+name});
+    if(locked) lane.disabled = true;
+    var nameRow = el('div', {class:'lane-name'});
+    if(serverNum===playerNum) nameRow.appendChild(el('span', {class:'ball-dot'}));
+    nameRow.appendChild(el('span', {class:'nm', text:name}));
+    lane.appendChild(nameRow);
+    lane.appendChild(el('div', {class:'serving-label', text: serverNum===playerNum?'Serving':''}));
+    lane.appendChild(el('div', {class:'lane-score', text:String(score)}));
+    lane.appendChild(el('div', {class:'lane-hint', text: locked?'':'Tap to add point'}));
+    lane.addEventListener('click', function(){ dispatch({type:'point', player:playerNum}); });
+    return lane;
+  }
+
+  function renderPlay(){
+    app.innerHTML = '';
+    var s = matchState;
+    var screen = el('div', {class:'screen'});
+
+    var top = el('div', {class:'topbar'});
+    var left = el('div', {style:{display:'flex',alignItems:'center',gap:'10px',flexWrap:'wrap'}});
+    var gameNum = s.games.length + 1;
+    var label = s.bestOf===1 ? 'Single game' : ('Game '+Math.min(gameNum,s.bestOf)+' of up to '+s.bestOf);
+    left.appendChild(el('div', {class:'match-meta', text:label}));
+    var pips = el('div', {class:'pips'});
+    for(var i=0;i<s.bestOf;i++){
+      var g = s.games[i];
+      pips.appendChild(el('span', {class:'pip'+(g?(g.p1>g.p2?' won-p1':' won-p2'):'')}));
+    }
+    left.appendChild(pips);
+    top.appendChild(left);
+    top.appendChild(connPill());
+    screen.appendChild(top);
+
+    var lanes = el('div', {class:'lanes'});
+    lanes.appendChild(laneEl(1, s));
+    lanes.appendChild(laneEl(2, s));
+    screen.appendChild(lanes);
+
+    var bottom = el('div', {class:'bottombar'});
+    var undoBtn = el('button', {type:'button', class:'ghost-btn', text:'Undo'});
+    undoBtn.disabled = !s.history || s.history.length===0;
+    undoBtn.addEventListener('click', function(){ dispatch({type:'undo'}); });
+    bottom.appendChild(undoBtn);
+    bottom.appendChild(el('div', {class:'spacer'}));
+    var resetBtn = el('button', {type:'button', class:'ghost-btn danger', text: resetArmed ? 'Tap again to confirm' : 'Reset match'});
+    if(resetArmed) resetBtn.dataset.armed = 'true';
+    resetBtn.addEventListener('click', function(){
+      if(!resetArmed){
+        resetArmed = true;
+        clearTimeout(resetArmTimer);
+        resetArmTimer = setTimeout(function(){ resetArmed=false; render(); }, 3000);
+        render();
+      } else {
+        resetArmed = false;
+        clearTimeout(resetArmTimer);
+        dispatch({type:'reset'});
+      }
+    });
+    bottom.appendChild(resetBtn);
+    screen.appendChild(bottom);
+
+    app.appendChild(screen);
+
+    if(s.gameWinner && !s.matchWinner){
+      var winnerName = s.gameWinner===1 ? s.p1 : s.p2;
+      var lastGame = s.games[s.games.length-1];
+      var overlay = el('div', {class:'overlay'});
+      var card = el('div', {class:'overlay-card'});
+      card.appendChild(el('div', {class:'overlay-eyebrow', text:'Game '+s.games.length+' complete'}));
+      card.appendChild(el('div', {class:'overlay-headline', html:'<span class="w">'+winnerName+'</span> wins '+lastGame.p1+'–'+lastGame.p2}));
+      var nb = el('button', {type:'button', class:'next-btn', text:'Next game →'});
+      nb.addEventListener('click', function(){ dispatch({type:'nextGame'}); });
+      card.appendChild(nb);
+      overlay.appendChild(card);
+      app.appendChild(overlay);
+    }
+
+    if(s.endsSwitchAnnounced && !prevEndsSwitchAnnounced){
+      showToast('Deciding game: switch ends now');
+    }
+    prevEndsSwitchAnnounced = !!s.endsSwitchAnnounced;
+  }
+
+  function renderFinished(){
+    app.innerHTML = '';
+    var s = matchState;
+    var wrap = el('div', {class:'finish-wrap'});
+    var winnerName = s.matchWinner===1 ? s.p1 : s.p2;
+    var w = countWins(s.games);
+    wrap.appendChild(el('div', {class:'finish-headline', text: winnerName+' wins the match!'}));
+    wrap.appendChild(el('div', {class:'finish-sub', text: s.p1+' '+w[1]+' – '+w[2]+' '+s.p2+' in games'}));
+
+    var table = el('table', {class:'game-table'});
+    var thead = el('tr', {});
+    thead.appendChild(el('th', {text:'Game'}));
+    thead.appendChild(el('th', {text:s.p1}));
+    thead.appendChild(el('th', {text:s.p2}));
+    table.appendChild(thead);
+    s.games.forEach(function(g, idx){
+      var tr = el('tr', {});
+      var c1 = el('td', {text:String(g.p1)});
+      var c2 = el('td', {text:String(g.p2)});
+      if(g.p1>g.p2) c1.classList.add('win','c1'); else c2.classList.add('win','c2');
+      tr.appendChild(el('td', {text:String(idx+1)}));
+      tr.appendChild(c1); tr.appendChild(c2);
+      table.appendChild(tr);
+    });
+    wrap.appendChild(table);
+
+    var newBtn = el('button', {type:'button', class:'new-match-btn', text:'New match'});
+    newBtn.addEventListener('click', function(){ dispatch({type:'reset'}); });
+    wrap.appendChild(newBtn);
+    wrap.appendChild(connPill());
+    app.appendChild(wrap);
+  }
+
+  function render(){
+    if(connPhase === 'landing'){ renderLanding(); return; }
+    if(connPhase === 'hosting-wait'){ renderHostingWait(); return; }
+    if(connPhase === 'joining'){ renderJoining(); return; }
+    if(connPhase === 'join-failed'){ renderJoinFailed(); return; }
+    // connected
+    if(!matchState || matchState.status === 'setup'){ renderSetup(); return; }
+    if(matchState.status === 'finished'){ renderFinished(); return; }
+    renderPlay();
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
