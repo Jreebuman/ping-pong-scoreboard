@@ -395,7 +395,10 @@ img{max-width:100%;}
       next.games = state.games.concat([{p1:newCur.p1, p2:newCur.p2}]);
       next.gameWinner = winner;
       var wins = countWins(next.games);
-      if(wins[winner] >= state.gamesToWin) next.matchWinner = winner;
+      if(wins[winner] >= state.gamesToWin){
+        next.matchWinner = winner;
+        next.status = 'finished';
+      }
     }
     var hist = (state.history||[]).slice(-29);
     hist.push(rest);
