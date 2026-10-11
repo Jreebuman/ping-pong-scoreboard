@@ -14,4 +14,4 @@ The board enforces real ITTF table tennis rules: games to 11, win by 2, serve sw
 
 Connections are peer-to-peer (via [PeerJS](https://peerjs.com/)) — no backend server, no sign-up, nothing stored outside your two browsers. Close both tabs and the match is gone, so finish your game before closing the page.
 
-Live at: _add your GitHub Pages URL here after first deploy_
+Live at: https://jreebuman.github.io/ping-pong-scoreboard/
