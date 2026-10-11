@@ -238,7 +238,7 @@ img{max-width:100%;}
       gamesToWin: gamesToWinFor(bestOf), gameFirstServer: firstServer,
       cur:{p1:0,p2:0}, games:[], gameWinner:null, matchWinner:null,
       ball: freshBall(), paddles:{p1:COURT_H/2-PADDLE_H/2, p2:COURT_H/2-PADDLE_H/2},
-      serveAt: Date.now() + SERVE_DELAY_MS
+      serveAt: performance.now() + SERVE_DELAY_MS
     };
   }
 
@@ -265,7 +265,7 @@ img{max-width:100%;}
       }
       next.serveAt = null; // wait for "Next game"
     } else {
-      next.serveAt = Date.now() + SERVE_DELAY_MS;
+      next.serveAt = performance.now() + SERVE_DELAY_MS;
     }
     return next;
   }
@@ -277,7 +277,7 @@ img{max-width:100%;}
     next.gameWinner = null;
     next.gameFirstServer = state.gameFirstServer===1 ? 2 : 1;
     next.ball = freshBall();
-    next.serveAt = Date.now() + SERVE_DELAY_MS;
+    next.serveAt = performance.now() + SERVE_DELAY_MS;
     return next;
   }
 
@@ -910,7 +910,7 @@ img{max-width:100%;}
     ctx.fillStyle = '#eef1f4';
     ctx.beginPath(); ctx.arc(bx, by, BALL_R, 0, Math.PI*2); ctx.fill();
 
-    if(s.serveAt !== null && s.serveAt > now){
+    if(s.serveAt !== null){
       ctx.fillStyle = 'rgba(238,241,244,.55)';
       ctx.font = '700 22px Rajdhani, sans-serif';
       ctx.textAlign = 'center';
